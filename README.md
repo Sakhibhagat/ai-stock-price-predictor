@@ -4,7 +4,7 @@ An interactive web app that predicts a stock's next-day closing price using
 historical price data and simple machine learning models — with a live
 dashboard where you can search and try any publicly traded company.
 
-**Live demo:** _add your Streamlit Cloud link here after deploying_
+**Live demo:** https://ai-stock-price-predictor-rk9g3giyn7bfbvlmjo5da2.streamlit.app/
 
 ## What it does
 
