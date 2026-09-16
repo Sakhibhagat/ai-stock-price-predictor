@@ -30,19 +30,24 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;600&display=swap');
 
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .block-container { padding-top: 2.5rem; max-width: 1100px; }
+    .stApp {
+        background: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(227,168,87,0.08), transparent),
+                    #0B0E14;
+    }
+    .block-container { padding-top: 4rem; max-width: 1100px; }
 
     .wordmark {
         font-family: 'Space Grotesk', sans-serif;
         font-weight: 700;
-        font-size: 2.4rem;
+        font-size: 4rem;
         text-align: center;
         letter-spacing: -0.01em;
+        margin-top: 1rem;
     }
     .wordmark span { color: #E3A857; }
     .tagline {
         text-align: center;
-        color: #838EA3;
+        color: #838EA3 !important;
         font-size: 1.02rem;
         margin-top: 0.3rem;
         margin-bottom: 2.2rem;
@@ -50,32 +55,55 @@ st.markdown(
 
     div[data-testid="stTextInput"] input {
         font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9rem;
+        text-align: center;
+        background-color: #12161F;
+        border: 1px solid #262C39;
+        border-radius: 10px;
+        padding: 12px 16px;
+    }
+    div[data-testid="stTextInput"] input:focus {
+        border-color: #E3A857;
+        box-shadow: 0 0 0 1px #E3A857;
     }
 
     /* Ticker pill buttons */
     div[data-testid="column"] .stButton > button {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         border-radius: 999px;
         border: 1px solid #262C39;
         background-color: #12161F;
         color: #C7CEDB;
-        padding: 6px 16px;
+        padding: 4px 12px;
+        min-height: 0;
+        white-space: nowrap;
     }
     div[data-testid="column"] .stButton > button:hover {
         border-color: #E3A857;
         color: #E3A857;
+        background-color: rgba(227,168,87,0.08);
     }
 
     [data-testid="stMetric"] {
         background-color: #12161F;
         border: 1px solid #262C39;
-        border-top: 2px solid #E3A857;
         border-radius: 8px;
         padding: 16px 18px 10px 18px;
     }
     [data-testid="stMetricValue"] { font-family: 'JetBrains Mono', monospace; }
     [data-testid="stMetricLabel"] { font-size: 0.82rem; opacity: 0.7; }
+
+    /* Ticker symbol in results heading rendered in monospace */
+    .result-heading {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+    }
+    .result-heading .ticker {
+        font-family: 'JetBrains Mono', monospace;
+        color: #E3A857;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -89,9 +117,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---- Sidebar controls ----
-st.sidebar.header("Settings")
-
+# ---- Stock selection controls (centered, main page) ----
 POPULAR_STOCKS = {
     "Apple (AAPL)": "AAPL",
     "Microsoft (MSFT)": "MSFT",
@@ -127,14 +153,18 @@ def add_saved_stock(label, symbol):
 saved_stocks = load_saved_stocks()
 all_quick_picks = {**POPULAR_STOCKS, **saved_stocks}
 
-st.sidebar.caption("Quick picks, or search any company below:")
-
-quick_pick = st.sidebar.selectbox("Quick picks", ["-- none --"] + sorted(all_quick_picks.keys()))
-
-search_query = st.sidebar.text_input(
-    "Search any company",
-    placeholder="e.g. Britannia, Netflix, Infosys...",
-)
+_, center, _ = st.columns([1, 3, 1])
+with center:
+    search_query = st.text_input(
+        "Search any company",
+        placeholder="Search any public company — e.g. Netflix, Infosys",
+        label_visibility="collapsed",
+    )
+    st.markdown(
+        "<div style='text-align:center; color:#5B6478; font-size:0.78rem; margin-top:4px;'>"
+        "Only publicly traded companies have tickers — private companies won't show up.</div>",
+        unsafe_allow_html=True,
+    )
 
 ticker = None
 if search_query:
@@ -149,23 +179,29 @@ if search_query:
             for r in results
             if "symbol" in r
         }
-        picked = st.sidebar.selectbox("Matches — pick one", list(options.keys()))
+        with center:
+            picked = st.selectbox("Matches — pick one", list(options.keys()))
         ticker = options[picked]
         # Add it to the shared quick-picks list for next time / other users
         add_saved_stock(picked, ticker)
     else:
-        st.sidebar.warning("No matches found. Try a different name, or it may not be publicly traded.")
-elif quick_pick != "-- none --":
-    ticker = all_quick_picks[quick_pick]
+        with center:
+            st.warning("No matches found. Try a different name, or it may not be publicly traded.")
 
 if not ticker:
     ticker = st.session_state.hero_ticker
 
-period = st.sidebar.selectbox("History to use", ["1y", "2y", "5y", "max"], index=2)
-run_button = st.sidebar.button("Run Prediction")
+# ---- Secondary controls: centered, quieter, below the search/pills ----
+_, csel, _ = st.columns([1, 3, 1])
+with csel:
+    sc1, sc2 = st.columns(2)
+    with sc1:
+        quick_pick = st.selectbox("Or pick from list", ["-- none --"] + sorted(all_quick_picks.keys()))
+    with sc2:
+        period = st.selectbox("History to use", ["1y", "2y", "5y", "max"], index=2)
 
-st.sidebar.markdown("---")
-st.sidebar.caption("Note: only publicly traded companies have stock tickers — private companies won't show up in search.")
+if not ticker and quick_pick != "-- none --":
+    ticker = all_quick_picks[quick_pick]
 
 
 def run_pipeline(ticker, period):
@@ -240,17 +276,19 @@ def currency_symbol(ticker):
 
 if not ticker:
     st.markdown(
-        "<div style='text-align:center; color:#838EA3; margin-bottom:10px; font-size:0.92rem;'>Or jump straight in —</div>",
+        "<div style='text-align:center; color:#838EA3; margin:6px 0 16px 0; font-size:0.9rem;'>try one:</div>",
         unsafe_allow_html=True,
     )
 
     demo_tickers = ["AAPL", "TSLA", "MSFT", "RELIANCE.NS", "TCS.NS", "NFLX"]
-    cols = st.columns(len(demo_tickers))
-    for col, sym in zip(cols, demo_tickers):
-        with col:
-            if st.button(sym, key=f"hero_{sym}", use_container_width=True):
-                st.session_state.hero_ticker = sym
-                st.rerun()
+    _, mid, _ = st.columns([1, 6, 1])
+    with mid:
+        btn_cols = st.columns(len(demo_tickers))
+        for col, sym in zip(btn_cols, demo_tickers):
+            with col:
+                if st.button(sym, key=f"hero_{sym}"):
+                    st.session_state.hero_ticker = sym
+                    st.rerun()
 
     st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
 
@@ -304,7 +342,11 @@ else:
             "50% is what random guessing would get."
         )
 
-        st.subheader(f"{ticker}: Actual vs Predicted (Test Period)")
+        st.markdown(
+            f'<div class="result-heading">Actual vs predicted for '
+            f'<span class="ticker">{ticker}</span> (test period)</div>',
+            unsafe_allow_html=True,
+        )
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=result["y_test"].index, y=result["y_test"].values,
